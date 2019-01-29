@@ -74,6 +74,7 @@ reg        byte_sync, sync, irq_en, tx_busy, rx_axis_tvalid_old;
        /*
         * AXI output
         */
+       wire       rx_clk;
        wire [7:0] rx_axis_tdata;
        wire       rx_axis_tvalid;
        wire       rx_axis_tlast;
@@ -84,7 +85,7 @@ reg        byte_sync, sync, irq_en, tx_busy, rx_axis_tvalid_old;
         */
          wire [31:0] tx_fcs_reg_rev, rx_fcs_reg_rev;
    
-   always @(posedge clk_int)
+   always @(posedge rx_clk)
      if (rst_int == 1'b1)
        begin
 	  byte_sync <= 1'b0;
@@ -116,7 +117,7 @@ reg        byte_sync, sync, irq_en, tx_busy, rx_axis_tvalid_old;
    assign phy_mdc = phy_mdclk;
    
    dualmem_widen8 RAMB16_inst_rx (
-                                    .clka(clk_int),              // Port A Clock
+                                    .clka(rx_clk),                // Port A Clock
                                     .clkb(msoc_clk),              // Port A Clock
                                     .douta(),                     // Port A 8-bit Data Output
                                     .addra({nextbuf[2:0],rx_addr_axis[10:3],rx_addr_axis[1:0]}),    // Port A 11-bit Address Input
@@ -265,13 +266,11 @@ always @(posedge clk_int)
    always @(posedge clk_int)
      if (rst_int)
        begin
-          rx_addr_axis <= 'b0;
           tx_axis_tvalid <= 'b0;
 	  axis_tx_frame_size <= 0;
 	  tx_axis_tvalid_dly <= 'b0;
 	  tx_frame_addr <= 'b0;
 	  tx_axis_tlast <= 'b0;
-          rx_dest_mac <= 'b0;
        end
      else
        begin
@@ -297,6 +296,16 @@ always @(posedge clk_int)
 	       else if (~tx_axis_tlast)
 		 tx_axis_tvalid_dly <= 1'b0;
 	    end
+      end
+ 
+   always @(posedge rx_clk)
+     if (rst_int)
+       begin
+          rx_addr_axis <= 'b0;
+          rx_dest_mac <= 'b0;
+       end
+     else
+       begin
 	  if (rx_axis_tvalid & ~rx_axis_tvalid_old)
             begin
             rx_addr_axis <= rx_addr_axis + 1;
@@ -317,6 +326,7 @@ rgmii_soc rgmii_soc1
    .clk_int(clk_int),
    .clk90_int(clk90_int),
    .clk_200_int(clk_200_int),
+   .rx_clk(rx_clk),
    /*
     * Ethernet: 1000BASE-T RGMII
     */
