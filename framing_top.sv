@@ -74,7 +74,6 @@ reg        byte_sync, sync, irq_en, tx_busy, rx_axis_tvalid_old;
        /*
         * AXI output
         */
-       wire       rx_clk;
        wire [7:0] rx_axis_tdata;
        wire       rx_axis_tvalid;
        wire       rx_axis_tlast;
@@ -85,7 +84,7 @@ reg        byte_sync, sync, irq_en, tx_busy, rx_axis_tvalid_old;
         */
          wire [31:0] tx_fcs_reg_rev, rx_fcs_reg_rev;
    
-   always @(posedge rx_clk)
+   always @(posedge clk_int)
      if (rst_int == 1'b1)
        begin
 	  byte_sync <= 1'b0;
@@ -117,7 +116,7 @@ reg        byte_sync, sync, irq_en, tx_busy, rx_axis_tvalid_old;
    assign phy_mdc = phy_mdclk;
    
    dualmem_widen8 RAMB16_inst_rx (
-                                    .clka(rx_clk),                // Port A Clock
+                                    .clka(clk_int),                // Port A Clock
                                     .clkb(msoc_clk),              // Port A Clock
                                     .douta(),                     // Port A 8-bit Data Output
                                     .addra({nextbuf[2:0],rx_addr_axis[10:3],rx_addr_axis[1:0]}),    // Port A 11-bit Address Input
@@ -298,7 +297,7 @@ always @(posedge clk_int)
 	    end
       end
  
-   always @(posedge rx_clk)
+   always @(posedge clk_int)
      if (rst_int)
        begin
           rx_addr_axis <= 'b0;
@@ -326,7 +325,6 @@ rgmii_soc rgmii_soc1
    .clk_int(clk_int),
    .clk90_int(clk90_int),
    .clk_200_int(clk_200_int),
-   .rx_clk(rx_clk),
    /*
     * Ethernet: 1000BASE-T RGMII
     */
