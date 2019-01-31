@@ -195,7 +195,6 @@ always @* begin
                     state_next = STATE_WAIT_LAST;
                 end else if (!gmii_rx_dv) begin
                     // end of packet
-                    m_axis_tlast_next = 1'b1;
                     if (gmii_rx_er_d0 || gmii_rx_er_d1 || gmii_rx_er_d2 || gmii_rx_er_d3) begin
                         // error received in FCS bytes
                         m_axis_tuser_next = 1'b1;

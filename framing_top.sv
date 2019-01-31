@@ -353,29 +353,40 @@ rgmii_soc rgmii_soc1
    .tx_fcs_reg(tx_fcs_reg)
 );
 
-`ifdef XILINX_ILA
-   
-ila_2 eth_ila_clk_int (
+`define XILINX_ILA_1
+
+`ifdef XILINX_ILA_1   
+xlnx_ila_1 eth_ila_clk_rx (
+	.clk(clk_int), // input wire clk
+	.probe0(rx_axis_tdata), // input wire [7:0]  probe4 
+	.probe1(rx_axis_tvalid), // input wire [0:0]  probe5 
+	.probe2(rx_axis_tlast), // input wire [0:0]  probe6 
+	.probe3(rx_axis_tuser), // input wire [0:0]  probe7
+        .probe4(byte_sync),
+        .probe5(last),
+        .probe6(rx_addr_axis),
+        .probe7(rx_dest_mac),
+        .probe8(rx_length_axis[nextbuf[2:0]]),
+	.probe9(rx_axis_tvalid_old)
+);
+`endif
+
+`ifdef XILINX_ILA_2
+xlnx_ila_2 eth_ila_clk_int (
 	.clk(clk_int), // input wire clk
 	.probe0(tx_axis_tdata), // input wire [7:0]  probe0  
 	.probe1(tx_axis_tvalid), // input wire [0:0]  probe1 
 	.probe2(tx_axis_tready), // input wire [0:0]  probe2 
 	.probe3(tx_axis_tlast), // input wire [0:0]  probe3 
-	.probe4(rx_axis_tdata), // input wire [7:0]  probe4 
-	.probe5(rx_axis_tvalid), // input wire [0:0]  probe5 
-	.probe6(rx_axis_tlast), // input wire [0:0]  probe6 
-	.probe7(rx_axis_tuser), // input wire [0:0]  probe7
-        .probe8(byte_sync),
-        .probe9(last),
-        .probe10(rx_addr_axis),
-        .probe11(rx_dest_mac),
-        .probe12(tx_enable_i),
-	.probe13(axis_tx_frame_size),
-	.probe14(tx_axis_tvalid_dly),
-	.probe15(tx_frame_addr)
+        .probe4(tx_enable_i),
+	.probe5(axis_tx_frame_size),
+	.probe6(tx_axis_tvalid_dly),
+	.probe7(tx_frame_addr)
 );
+`endif
 
-ila_3 eth_ila_clk_msoc (
+`ifdef XILINX_ILA_3
+xlnx_ila_3 eth_ila_clk_msoc (
 	.clk(msoc_clk), // input wire clk
 	.probe0(sync),
 	.probe1(avail),
@@ -383,7 +394,6 @@ ila_3 eth_ila_clk_msoc (
         .probe3(tx_enable_dly),
         .probe4(tx_busy)
 );
-
 `endif
    
 endmodule // framing_top
