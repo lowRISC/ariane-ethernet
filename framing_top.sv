@@ -353,7 +353,7 @@ rgmii_soc rgmii_soc1
    .tx_fcs_reg(tx_fcs_reg)
 );
 
-`define XILINX_ILA_1
+// `define XILINX_ILA_1
 
 `ifdef XILINX_ILA_1   
 xlnx_ila_1 eth_ila_clk_rx (
