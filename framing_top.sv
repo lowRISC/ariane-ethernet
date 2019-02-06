@@ -54,7 +54,7 @@ logic [63:0] framing_rdata_pkt, framing_wdata_pkt;
 logic [3:0] tx_enable_dly, firstbuf, nextbuf, lastbuf;
 logic [2:0] last;
    
-reg        byte_sync, sync, irq_en, tx_busy, rx_axis_tvalid_old;
+reg        byte_sync, sync, irq_en, tx_busy;
 
    wire [7:0] m_enb = (we_d ? core_lsu_be : 8'hFF);
    logic phy_mdclk, cooked, tx_enable_old, loopback, promiscuous;
@@ -64,6 +64,7 @@ reg        byte_sync, sync, irq_en, tx_busy, rx_axis_tvalid_old;
        /*
         * AXI input
         */
+        wire        tx_clk;
         reg         tx_axis_tvalid;
         reg         tx_axis_tvalid_dly;
         reg 	    tx_axis_tlast;
@@ -92,11 +93,11 @@ reg        byte_sync, sync, irq_en, tx_busy, rx_axis_tvalid_old;
        end
      else
        begin
-	  if (rx_axis_tvalid && (byte_sync == 0) && (nextbuf != (firstbuf+lastbuf)&15) && ~rx_axis_tvalid_old)
+	  if (rx_axis_tvalid && (byte_sync == 0) && (nextbuf != (firstbuf+lastbuf)&15))
             begin
                byte_sync <= 1'b1;
             end
-	  if (rx_axis_tlast && byte_sync && ~rx_axis_tvalid_old)
+	  if (rx_axis_tlast && byte_sync)
             begin
                last <= 1'b1;
             end
@@ -133,13 +134,13 @@ reg        byte_sync, sync, irq_en, tx_busy, rx_axis_tvalid_old;
                                     );
 
     dualmem_widen RAMB16_inst_tx (
-                                   .clka(~clk_int),             // Port A Clock
+                                   .clka(~tx_clk),               // Port A Clock
                                    .clkb(msoc_clk),              // Port A Clock
                                    .douta(douta),                // Port A 8-bit Data Output
                                    .addra({1'b0,tx_frame_addr[10:3],tx_frame_addr[1:0]}),  // Port A 11-bit Address Input
                                    .dina(16'b0),                 // Port A 8-bit Data Input
                                    .ena(tx_axis_tvalid),         // Port A RAM Enable Input
-                                   .wea(2'b0),                  // Port A Write Enable Input
+                                   .wea(2'b0),                   // Port A Write Enable Input
                                    .doutb(framing_wdata_pkt),    // Port B 32-bit Data Output
                                    .addrb(core_lsu_addr[11:3]),  // Port B 9-bit Address Input
                                    .dinb(core_lsu_wdata), // Port B 32-bit Data Input
@@ -199,27 +200,26 @@ always @(posedge msoc_clk)
             if (sync) nextbuf <= nextbuf + 1'b1;
             sync <= 1'b0;
          end
-       if (mac_gmii_tx_en && tx_axis_tlast)
+       if (mac_gmii_tx_en && tx_enable_i)
          begin
             tx_enable_dly <= 0;
          end
        else if (1'b1 == |tx_enable_dly)
          begin
          tx_busy <= 1'b1;
-         tx_enable_dly <= tx_enable_dly + 1'b1;
+         tx_enable_dly <= tx_enable_dly + !(&tx_enable_dly);
          end
        else if (~mac_gmii_tx_en)
          tx_busy <= 1'b0;         
     end
 
-always @(posedge clk_int)
+always @(posedge tx_clk)
   if (rst_int)
     begin
        tx_enable_i <= 1'b0;
     end
   else
     begin
-       tx_enable_old <= tx_enable_i;
        if (mac_gmii_tx_en && tx_axis_tlast)
          begin
             tx_enable_i <= 1'b0;
@@ -261,41 +261,32 @@ always @(posedge clk_int)
                                           rx_fcs_reg[20],rx_fcs_reg[21],rx_fcs_reg[22],rx_fcs_reg[23],
                                           rx_fcs_reg[24],rx_fcs_reg[25],rx_fcs_reg[26],rx_fcs_reg[27],
                                           rx_fcs_reg[28],rx_fcs_reg[29],rx_fcs_reg[30],rx_fcs_reg[31]};
-   wire axis_tx_byte_sent = &axis_tx_frame_size[1:0];
    
-   always @(posedge clk_int)
+   always @(posedge tx_clk)
      if (rst_int)
        begin
           tx_axis_tvalid <= 'b0;
-	  axis_tx_frame_size <= 0;
 	  tx_axis_tvalid_dly <= 'b0;
 	  tx_frame_addr <= 'b0;
 	  tx_axis_tlast <= 'b0;
        end
      else
        begin
+          tx_enable_old <= tx_enable_i;
 	  if (tx_enable_i & (tx_enable_old == 0))
 	    begin
-	       axis_tx_frame_size <= 'b0;
 	       tx_frame_addr <= 'b0;
 	    end
-	  else if (1'b0 == &axis_tx_frame_size)
-            begin
-               axis_tx_frame_size <= axis_tx_frame_size + 1;
-            end
 	  if (tx_axis_tready)
 	    begin
 	       tx_frame_addr <= tx_frame_addr + 1;
 	       tx_axis_tlast <= (tx_frame_addr == tx_packet_length-2) & tx_axis_tvalid_dly;
 	    end
-          if (axis_tx_byte_sent)
-	    begin
-	       tx_axis_tvalid <= tx_axis_tvalid_dly;
-	       if (tx_enable_old)
-		 tx_axis_tvalid_dly <= 1'b1;
-	       else if (~tx_axis_tlast)
-		 tx_axis_tvalid_dly <= 1'b0;
-	    end
+          tx_axis_tvalid <= tx_axis_tvalid_dly;
+	  if (tx_enable_old)
+	      tx_axis_tvalid_dly <= 1'b1;
+	  else if (~tx_axis_tlast)
+	      tx_axis_tvalid_dly <= 1'b0;
       end
  
    always @(posedge rx_clk)
@@ -306,18 +297,17 @@ always @(posedge clk_int)
        end
      else
        begin
-	  if (rx_axis_tvalid & ~rx_axis_tvalid_old)
+	  if (rx_axis_tvalid)
             begin
             rx_addr_axis <= rx_addr_axis + 1;
             if (rx_addr_axis < 6)
               rx_dest_mac <= {rx_dest_mac[39:0],rx_axis_tdata};
             end
-	  if (rx_axis_tlast & ~rx_axis_tvalid_old)
+	  if (rx_axis_tlast)
             begin
 	        rx_length_axis[nextbuf[2:0]] <= rx_addr_axis + 1;
 	        rx_addr_axis <= 'b0;
             end
-          rx_axis_tvalid_old <= rx_axis_tvalid;
       end
  
 rgmii_soc rgmii_soc1
@@ -327,6 +317,7 @@ rgmii_soc rgmii_soc1
    .clk90_int(clk90_int),
    .clk_200_int(clk_200_int),
    .rx_clk(rx_clk),
+   .tx_clk(tx_clk),
    /*
     * Ethernet: 1000BASE-T RGMII
     */
@@ -353,7 +344,9 @@ rgmii_soc rgmii_soc1
    .tx_fcs_reg(tx_fcs_reg)
 );
 
-// `define XILINX_ILA_1
+`define XILINX_ILA_1
+`define XILINX_ILA_2
+`define XILINX_ILA_3
 
 `ifdef XILINX_ILA_1   
 xlnx_ila_1 eth_ila_clk_rx (
@@ -367,7 +360,7 @@ xlnx_ila_1 eth_ila_clk_rx (
         .probe6(rx_addr_axis),
         .probe7(rx_dest_mac),
         .probe8(rx_length_axis[nextbuf[2:0]]),
-	.probe9(rx_axis_tvalid_old)
+	.probe9(rx_clk)
 );
 `endif
 
@@ -379,9 +372,11 @@ xlnx_ila_2 eth_ila_clk_int (
 	.probe2(tx_axis_tready), // input wire [0:0]  probe2 
 	.probe3(tx_axis_tlast), // input wire [0:0]  probe3 
         .probe4(tx_enable_i),
-	.probe5(axis_tx_frame_size),
+	.probe5(douta),
 	.probe6(tx_axis_tvalid_dly),
-	.probe7(tx_frame_addr)
+	.probe7(tx_frame_addr),
+	.probe8(mac_gmii_tx_en),
+        .probe9(tx_enable_old)
 );
 `endif
 

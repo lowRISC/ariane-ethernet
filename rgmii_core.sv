@@ -58,11 +58,12 @@ module rgmii_core #
         * AXI input
         */
  
-    input              tx_axis_tvalid,
-    input              tx_axis_tlast,
-    input [7:0]        tx_axis_tdata,
-    output             tx_axis_tready,
-    input              tx_axis_tuser,
+    output wire        tx_clk,
+    input wire         tx_axis_tvalid,
+    input wire         tx_axis_tlast,
+    input wire [7:0]   tx_axis_tdata,
+    output wire        tx_axis_tready,
+    input wire         tx_axis_tuser,
    
        /*
         * AXI output
@@ -104,6 +105,7 @@ eth_mac_inst (
     .logic_clk(clk),
     .logic_rst(rst),
     .rx_clk(rx_clk),
+    .tx_clk(tx_clk),
 
     .tx_axis_tdata(tx_axis_tdata),
     .tx_axis_tvalid(tx_axis_tvalid),

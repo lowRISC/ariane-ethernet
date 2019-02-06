@@ -54,11 +54,12 @@ module rgmii_soc (
        /*
         * AXI input
         */
-    input              tx_axis_tvalid,
-    input              tx_axis_tlast,
-    input [7:0]        tx_axis_tdata,
-    output             tx_axis_tready,
-    input              tx_axis_tuser,
+    output wire        tx_clk,
+    input wire         tx_axis_tvalid,
+    input wire         tx_axis_tlast,
+    input wire [7:0]   tx_axis_tdata,
+    output wire        tx_axis_tready,
+    input wire         tx_axis_tuser,
    
        /*
         * AXI output
@@ -195,6 +196,7 @@ core_inst (
     .clk(clk_int),
     .clk90(clk90_int),
     .rx_clk(rx_clk),
+    .tx_clk(tx_clk),
     .rst(rst_int),
     /*
      * Ethernet: 1000BASE-T RGMII

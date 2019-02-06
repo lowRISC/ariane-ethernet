@@ -63,6 +63,7 @@ module eth_mac_1g_rgmii_fifo #
     /*
      * AXI input
      */
+    output wire        tx_clk,
     input wire [7:0]   tx_axis_tdata,
     input wire         tx_axis_tvalid,
     output wire        tx_axis_tready,
@@ -110,7 +111,6 @@ module eth_mac_1g_rgmii_fifo #
     input wire [7:0]   ifg_delay
 );
 
-wire tx_clk;
 wire tx_rst;
 wire rx_rst;
 
