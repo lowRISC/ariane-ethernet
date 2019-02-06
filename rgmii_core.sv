@@ -58,11 +58,11 @@ module rgmii_core #
         * AXI input
         */
  
-    input              tx_axis_tvalid,
-    input              tx_axis_tlast,
-    input [7:0]        tx_axis_tdata,
-    output             tx_axis_tready,
-    input              tx_axis_tuser,
+    input wire         tx_axis_tvalid,
+    input wire         tx_axis_tlast,
+    input wire [7:0]   tx_axis_tdata,
+    output wire        tx_axis_tready,
+    input wire         tx_axis_tuser,
    
        /*
         * AXI output

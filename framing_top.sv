@@ -33,7 +33,7 @@ module framing_top
    
   input wire          phy_mdio_i,
   output reg          phy_mdio_o,
-  output reg          phy_mdio_oen,
+  output reg          phy_mdio_oe,
   output wire         phy_mdc,
 
   output reg          eth_irq
@@ -54,7 +54,7 @@ logic [63:0] framing_rdata_pkt, framing_wdata_pkt;
 logic [3:0] tx_enable_dly, firstbuf, nextbuf, lastbuf;
 logic [2:0] last;
    
-reg        byte_sync, sync, irq_en, tx_busy, rx_axis_tvalid_old;
+reg        byte_sync, sync, irq_en, tx_busy;
 
    wire [7:0] m_enb = (we_d ? core_lsu_be : 8'hFF);
    logic phy_mdclk, cooked, tx_enable_old, loopback, promiscuous;
@@ -91,11 +91,11 @@ reg        byte_sync, sync, irq_en, tx_busy, rx_axis_tvalid_old;
        end
      else
        begin
-	  if (rx_axis_tvalid && (byte_sync == 0) && (nextbuf != (firstbuf+lastbuf)&15) && ~rx_axis_tvalid_old)
+	  if (rx_axis_tvalid && (byte_sync == 0) && (nextbuf != (firstbuf+lastbuf)&15))
             begin
                byte_sync <= 1'b1;
             end
-	  if (rx_axis_tlast && byte_sync && ~rx_axis_tvalid_old)
+	  if (rx_axis_tlast && byte_sync)
             begin
                last <= 1'b1;
             end
@@ -158,7 +158,7 @@ always @(posedge msoc_clk)
     loopback <= 1'b0;
     spare <= 4'b0;
     promiscuous <= 1'b0;
-    phy_mdio_oen <= 1'b0;
+    phy_mdio_oe <= 1'b0;
     phy_mdio_o <= 1'b0;
     phy_mdclk <= 1'b0;
     sync <= 1'b0;
@@ -183,7 +183,7 @@ always @(posedge msoc_clk)
         1: {irq_en,promiscuous,spare,loopback,cooked,mac_address[47:32]} <= core_lsu_wdata;
         2: begin tx_enable_dly <= 10; tx_packet_length <= core_lsu_wdata; end /* tx payload size */
         3: begin tx_enable_dly <= 0; tx_packet_length <= 0; end
-        4: begin {phy_mdio_oen,phy_mdio_o,phy_mdclk} <= core_lsu_wdata; end
+        4: begin {phy_mdio_oe,phy_mdio_o,phy_mdclk} <= core_lsu_wdata; end
         5: begin lastbuf <= core_lsu_wdata[3:0]; end
         6: begin firstbuf <= core_lsu_wdata[3:0]; end
         default:;
@@ -198,14 +198,14 @@ always @(posedge msoc_clk)
             if (sync) nextbuf <= nextbuf + 1'b1;
             sync <= 1'b0;
          end
-       if (mac_gmii_tx_en && tx_axis_tlast)
+       if (mac_gmii_tx_en && tx_enable_i)
          begin
             tx_enable_dly <= 0;
          end
        else if (1'b1 == |tx_enable_dly)
          begin
          tx_busy <= 1'b1;
-         tx_enable_dly <= tx_enable_dly + 1'b1;
+         tx_enable_dly <= tx_enable_dly + !(&tx_enable_dly);
          end
        else if (~mac_gmii_tx_en)
          tx_busy <= 1'b0;         
@@ -218,7 +218,6 @@ always @(posedge clk_int)
     end
   else
     begin
-       tx_enable_old <= tx_enable_i;
        if (mac_gmii_tx_en && tx_axis_tlast)
          begin
             tx_enable_i <= 1'b0;
@@ -232,7 +231,7 @@ always @(posedge clk_int)
     13'b10001????0001 : framing_rdata = {irq_en, promiscuous, spare, loopback, cooked, mac_address[47:32]};
     13'b1000?????0010 : framing_rdata = {tx_busy, 4'b0, tx_frame_addr, 5'b0, tx_packet_length};
     13'b10001????0011 : framing_rdata = tx_fcs_reg_rev;
-    13'b10001????0100 : framing_rdata = {phy_mdio_i,phy_mdio_oen,phy_mdio_o,phy_mdclk};
+    13'b10001????0100 : framing_rdata = {phy_mdio_i,phy_mdio_oe,phy_mdio_o,phy_mdclk};
     13'b10001????0101 : framing_rdata = rx_fcs_reg_rev;
     13'b10001????0110 : framing_rdata = {eth_irq, avail, lastbuf, nextbuf, firstbuf};
     13'b10001????1??? : framing_rdata = rx_length_axis[core_lsu_addr_dly[5:3]];
@@ -260,41 +259,32 @@ always @(posedge clk_int)
                                           rx_fcs_reg[20],rx_fcs_reg[21],rx_fcs_reg[22],rx_fcs_reg[23],
                                           rx_fcs_reg[24],rx_fcs_reg[25],rx_fcs_reg[26],rx_fcs_reg[27],
                                           rx_fcs_reg[28],rx_fcs_reg[29],rx_fcs_reg[30],rx_fcs_reg[31]};
-   wire axis_tx_byte_sent = &axis_tx_frame_size[1:0];
    
    always @(posedge clk_int)
      if (rst_int)
        begin
           tx_axis_tvalid <= 'b0;
-	  axis_tx_frame_size <= 0;
 	  tx_axis_tvalid_dly <= 'b0;
 	  tx_frame_addr <= 'b0;
 	  tx_axis_tlast <= 'b0;
        end
      else
        begin
+          tx_enable_old <= tx_enable_i;
 	  if (tx_enable_i & (tx_enable_old == 0))
 	    begin
-	       axis_tx_frame_size <= 'b0;
 	       tx_frame_addr <= 'b0;
 	    end
-	  else if (1'b0 == &axis_tx_frame_size)
-            begin
-               axis_tx_frame_size <= axis_tx_frame_size + 1;
-            end
 	  if (tx_axis_tready)
 	    begin
 	       tx_frame_addr <= tx_frame_addr + 1;
 	       tx_axis_tlast <= (tx_frame_addr == tx_packet_length-2) & tx_axis_tvalid_dly;
 	    end
-          if (axis_tx_byte_sent)
-	    begin
-	       tx_axis_tvalid <= tx_axis_tvalid_dly;
-	       if (tx_enable_old)
-		 tx_axis_tvalid_dly <= 1'b1;
-	       else if (~tx_axis_tlast)
-		 tx_axis_tvalid_dly <= 1'b0;
-	    end
+          tx_axis_tvalid <= tx_axis_tvalid_dly;
+	  if (tx_enable_old)
+	      tx_axis_tvalid_dly <= 1'b1;
+	  else if (~tx_axis_tlast)
+	      tx_axis_tvalid_dly <= 1'b0;
       end
  
    always @(posedge clk_int)
@@ -305,18 +295,17 @@ always @(posedge clk_int)
        end
      else
        begin
-	  if (rx_axis_tvalid & ~rx_axis_tvalid_old)
+	  if (rx_axis_tvalid)
             begin
             rx_addr_axis <= rx_addr_axis + 1;
             if (rx_addr_axis < 6)
               rx_dest_mac <= {rx_dest_mac[39:0],rx_axis_tdata};
             end
-	  if (rx_axis_tlast & ~rx_axis_tvalid_old)
+	  if (rx_axis_tlast)
             begin
 	        rx_length_axis[nextbuf[2:0]] <= rx_addr_axis + 1;
 	        rx_addr_axis <= 'b0;
             end
-          rx_axis_tvalid_old <= rx_axis_tvalid;
       end
  
 rgmii_soc rgmii_soc1
@@ -351,29 +340,44 @@ rgmii_soc rgmii_soc1
    .tx_fcs_reg(tx_fcs_reg)
 );
 
-`ifdef XILINX_ILA
-   
-ila_2 eth_ila_clk_int (
+// `define XILINX_ILA_1
+// `define XILINX_ILA_2
+// `define XILINX_ILA_3
+
+`ifdef XILINX_ILA_1   
+xlnx_ila_1 eth_ila_clk_rx (
+	.clk(clk_int), // input wire clk
+	.probe0(rx_axis_tdata), // input wire [7:0]  probe4 
+	.probe1(rx_axis_tvalid), // input wire [0:0]  probe5 
+	.probe2(rx_axis_tlast), // input wire [0:0]  probe6 
+	.probe3(rx_axis_tuser), // input wire [0:0]  probe7
+        .probe4(byte_sync),
+        .probe5(last),
+        .probe6(rx_addr_axis),
+        .probe7(rx_dest_mac),
+        .probe8(rx_length_axis[nextbuf[2:0]]),
+	.probe9(rx_clk)
+);
+`endif
+
+`ifdef XILINX_ILA_2
+xlnx_ila_2 eth_ila_clk_int (
 	.clk(clk_int), // input wire clk
 	.probe0(tx_axis_tdata), // input wire [7:0]  probe0  
 	.probe1(tx_axis_tvalid), // input wire [0:0]  probe1 
 	.probe2(tx_axis_tready), // input wire [0:0]  probe2 
 	.probe3(tx_axis_tlast), // input wire [0:0]  probe3 
-	.probe4(rx_axis_tdata), // input wire [7:0]  probe4 
-	.probe5(rx_axis_tvalid), // input wire [0:0]  probe5 
-	.probe6(rx_axis_tlast), // input wire [0:0]  probe6 
-	.probe7(rx_axis_tuser), // input wire [0:0]  probe7
-        .probe8(byte_sync),
-        .probe9(last),
-        .probe10(rx_addr_axis),
-        .probe11(rx_dest_mac),
-        .probe12(tx_enable_i),
-	.probe13(axis_tx_frame_size),
-	.probe14(tx_axis_tvalid_dly),
-	.probe15(tx_frame_addr)
+        .probe4(tx_enable_i),
+	.probe5(douta),
+	.probe6(tx_axis_tvalid_dly),
+	.probe7(tx_frame_addr),
+	.probe8(mac_gmii_tx_en),
+        .probe9(tx_enable_old)
 );
+`endif
 
-ila_3 eth_ila_clk_msoc (
+`ifdef XILINX_ILA_3
+xlnx_ila_3 eth_ila_clk_msoc (
 	.clk(msoc_clk), // input wire clk
 	.probe0(sync),
 	.probe1(avail),
@@ -381,7 +385,6 @@ ila_3 eth_ila_clk_msoc (
         .probe3(tx_enable_dly),
         .probe4(tx_busy)
 );
-
 `endif
    
 endmodule // framing_top
