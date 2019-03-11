@@ -82,7 +82,7 @@ module rgmii_soc (
 wire [3:0] phy_rxd_delay;
 wire       phy_rx_ctl_delay;
 
-IDELAYCTRL
+idelayctrl
 idelayctrl_inst
 (
     .REFCLK(clk_200_int),
@@ -90,7 +90,7 @@ idelayctrl_inst
     .RDY()
 );
 
-IDELAYE2 #(
+idelaye2 #(
     .IDELAY_TYPE("FIXED")
 )
 phy_rxd_idelay_0
@@ -109,7 +109,7 @@ phy_rxd_idelay_0
     .REGRST(1'b0)
 );
 
-IDELAYE2 #(
+idelaye2 #(
     .IDELAY_TYPE("FIXED")
 )
 phy_rxd_idelay_1
@@ -128,7 +128,7 @@ phy_rxd_idelay_1
     .REGRST(1'b0)
 );
 
-IDELAYE2 #(
+idelaye2 #(
     .IDELAY_TYPE("FIXED")
 )
 phy_rxd_idelay_2
@@ -147,7 +147,7 @@ phy_rxd_idelay_2
     .REGRST(1'b0)
 );
 
-IDELAYE2 #(
+idelaye2 #(
     .IDELAY_TYPE("FIXED")
 )
 phy_rxd_idelay_3
@@ -166,7 +166,7 @@ phy_rxd_idelay_3
     .REGRST(1'b0)
 );
 
-IDELAYE2 #(
+idelaye2 #(
     .IDELAY_VALUE(0),
     .IDELAY_TYPE("FIXED")
 )

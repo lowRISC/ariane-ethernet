@@ -22,14 +22,10 @@ module dualmem_widen8(clka, clkb, dina, dinb, addra, addrb, wea, web, douta, dou
    reg [12:0]       addra_dly;
    reg [10:0]       addrb_dly;
 
-/*
+`ifdef GENESYSII
 `ifndef verilator
  `define RAMB16
 `endif
-*/
-   
-`ifdef GENESYSII
- `define RAMB16
 `endif
 
 `ifdef RAMB16
@@ -85,7 +81,7 @@ infer_dpram #(.RAM_SIZE(11), .BYTE_WIDTH(8)) ram1 // RAM_SIZE is in words
 .ram_we_a({wea[1],wea[1],wea[1],wea[1],wea[0],wea[0],wea[0],wea[0]}),
 .ram_addr_a(addra),
 .ram_wrdata_a({dina,dina,dina,dina}),
-.ram_rddata_a({dout,douta}),
+.ram_rddata_a(douta),
 .ram_clk_b(clkb),
 .ram_en_b(|enb),
 .ram_we_b({web[1],web[1],web[1],web[1],web[0],web[0],web[0],web[0]}),

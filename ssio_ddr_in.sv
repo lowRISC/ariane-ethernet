@@ -58,7 +58,7 @@ wire clk_int;
 wire clk_io;
 
 generate
-
+`ifndef verilator
 if (TARGET == "XILINX") begin
 
     // use Xilinx clocking primitives
@@ -141,7 +141,9 @@ if (TARGET == "XILINX") begin
 
     end
 
-end else begin
+end else
+`endif
+begin
 
     // pass through RX clock to input buffers
     assign clk_io = input_clk;

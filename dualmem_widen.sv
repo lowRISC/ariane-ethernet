@@ -14,15 +14,11 @@ module dualmem_widen(clka, clkb, dina, dinb, addra, addrb, wea, web, douta, dout
 
    genvar r;
    wire [47:0]        dout;
-
-/*   
+   
+`ifdef GENESYSII
 `ifndef verilator
  `define RAMB16
 `endif
-*/
-   
-`ifdef GENESYSII
- `define RAMB16
 `endif
 
 `ifdef RAMB16

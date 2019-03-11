@@ -64,7 +64,7 @@ Provides a consistent output DDR flip flop across multiple FPGA families
 genvar n;
 
 generate
-
+`ifndef verilator
 if (TARGET == "XILINX") begin
     for (n = 0; n < WIDTH; n = n + 1) begin : oddr
         if (IODDR_STYLE == "IODDR") begin
@@ -113,7 +113,9 @@ end else if (TARGET == "ALTERA") begin
         .aclr(1'b0),
         .dataout(q)
     );
-end else begin
+end else
+`endif
+ begin
     reg [WIDTH-1:0] d_reg_1 = {WIDTH{1'b0}};
     reg [WIDTH-1:0] d_reg_2 = {WIDTH{1'b0}};
 
