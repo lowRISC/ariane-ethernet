@@ -22,17 +22,7 @@ module dualmem_widen8(clka, clkb, dina, dinb, addra, addrb, wea, web, douta, dou
    reg [12:0]       addra_dly;
    reg [10:0]       addrb_dly;
 
-/*
-`ifndef verilator
- `define RAMB16
-`endif
-*/
-   
-`ifdef GENESYSII
- `define RAMB16
-`endif
-
-`ifdef RAMB16
+`ifdef FPGA_TARGET_XILINX
    
    assign douta = dout0 >> {addra_dly[12:11],4'b0000};
    assign doutb = dout1 >> {addrb_dly[10:9],6'b000000};
