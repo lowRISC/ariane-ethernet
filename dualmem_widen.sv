@@ -15,17 +15,7 @@ module dualmem_widen(clka, clkb, dina, dinb, addra, addrb, wea, web, douta, dout
    genvar r;
    wire [47:0]        dout;
 
-/*   
-`ifndef verilator
- `define RAMB16
-`endif
-*/
-   
-`ifdef GENESYSII
- `define RAMB16
-`endif
-
-`ifdef RAMB16
+`ifdef FPGA_TARGET_XILINX
    
    generate for (r = 0; r < 2; r=r+1)
      RAMB16_S9_S36
