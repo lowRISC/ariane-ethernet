@@ -28,7 +28,7 @@ module dualmem_widen8(clka, clkb, dina, dinb, addra, addrb, wea, web, douta, dou
 `endif
 */
    
-`ifdef GENESYSII
+`ifdef KINTEX7
  `define RAMB16
 `endif
 
