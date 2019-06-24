@@ -39,6 +39,9 @@ logic        ce_d_dly, avail;
 logic [63:0] framing_rdata_pkt, framing_wdata_pkt;
 logic [3:0] tx_enable_dly, firstbuf, nextbuf, lastbuf;
 
+reg [1:0] axis_eduttxd ;
+reg       axis_eduttx_en;
+reg [31:0] tx_fcs_reg, rx_fcs_reg, rx_fcs_err_cnt, rx_fram_err_cnt;
 reg [12:0] addr_tap, nxt_addr;
 reg [23:0] rx_byte, rx_nxt, rx_byte_dly;
 reg  [2:0] rx_pair;
@@ -188,7 +191,9 @@ always @(posedge msoc_clk)
     irq_en <= 1'b0;
     ce_d_dly <= 1'b0;
     tx_busy <= 1'b0;
-    avail = 1'b0;         
+    avail = 1'b0;      
+    rx_fcs_err_cnt <= 32'b0;
+    rx_fram_err_cnt <= 32'b0;
     end
   else
     begin
@@ -197,7 +202,7 @@ always @(posedge msoc_clk)
     ce_d_dly <= ce_d;
     avail = nextbuf != firstbuf;
     eth_irq <= avail & irq_en; // make eth_irq go away immediately if irq_en is low
-    if (framing_sel&we_d&(core_lsu_addr[14:11]==4'b0001))
+    if (framing_sel&we_d&(&core_lsu_be[3:0])&(core_lsu_addr[14:11]==4'b0001))
       case(core_lsu_addr[6:3])
         0: mac_address[31:0] <= core_lsu_wdata;
         1: {irq_en,promiscuous,spare,loopback,cooked,mac_address[47:32]} <= core_lsu_wdata;
@@ -210,8 +215,11 @@ always @(posedge msoc_clk)
       endcase
        if (byte_sync & (~rx_pair[2]) & ~sync)
          begin
-         // check broadcast/multicast address
-	     sync <= (rx_dest_mac[47:24]==24'h01005E) | (&rx_dest_mac) | (mac_address == rx_dest_mac) | promiscuous;
+            // check for error count
+            rx_fcs_err_cnt += axis_error_bad_fcs;
+            rx_fram_err_cnt += axis_error_bad_frame;
+            // check broadcast/multicast address
+	     sync <= ((rx_dest_mac[47:24]==24'h01005E) | (&rx_dest_mac) | (mac_address == rx_dest_mac) | promiscuous) & (((!axis_error_bad_fcs) & (!axis_error_bad_frame)) | cooked);
          end
        else if (~byte_sync)
          begin
@@ -250,9 +258,9 @@ always @(posedge clk_rmii)
     13'b10001????0000 : framing_rdata = mac_address[31:0];
     13'b10001????0001 : framing_rdata = {irq_en, promiscuous, spare, loopback, cooked, mac_address[47:32]};
     13'b1000?????0010 : framing_rdata = {tx_busy, 4'b0, tx_frame_addr, 5'b0, tx_packet_length};
-    13'b10001????0011 : framing_rdata = tx_fcs_reg_rev;
+    13'b10001????0011 : framing_rdata = {rx_fram_err_cnt, tx_fcs_reg_rev};
     13'b10001????0100 : framing_rdata = {i_edutmdio,oe_edutmdio,o_edutmdio,o_edutmdclk};
-    13'b10001????0101 : framing_rdata = rx_fcs_reg_rev;
+    13'b10001????0101 : framing_rdata = {rx_fcs_err_cnt, rx_fcs_reg_rev};
     13'b10001????0110 : framing_rdata = {eth_irq, avail, lastbuf, nextbuf, firstbuf};
     13'b10001????1??? : framing_rdata = rx_length_axis[core_lsu_addr_dly[5:3]];
     13'b10010???????? : framing_rdata = framing_wdata_pkt;
@@ -264,9 +272,6 @@ always @(posedge clk_rmii)
   
    parameter dly = 0;
    
-   reg [1:0] 	    axis_eduttxd ;
-   reg 		    axis_eduttx_en;
-   reg [31:0] 	    tx_fcs_reg, rx_fcs_reg;
    assign 	    tx_fcs_reg_rev = {tx_fcs_reg[0],tx_fcs_reg[1],tx_fcs_reg[2],tx_fcs_reg[3],
                                           tx_fcs_reg[4],tx_fcs_reg[5],tx_fcs_reg[6],tx_fcs_reg[7],
                                           tx_fcs_reg[8],tx_fcs_reg[9],tx_fcs_reg[10],tx_fcs_reg[11],
