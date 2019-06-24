@@ -73,6 +73,8 @@ module rgmii_soc (
      * Status
      */
 
+    output wire        rx_error_bad_frame,
+    output wire        rx_error_bad_fcs,    
     output wire [31:0] rx_fcs_reg,
     output wire [31:0] tx_fcs_reg
 
@@ -218,6 +220,8 @@ core_inst (
     .rx_axis_tvalid(rx_axis_tvalid),
     .rx_axis_tlast(rx_axis_tlast),
     .rx_axis_tuser(rx_axis_tuser),
+    .rx_error_bad_frame,
+    .rx_error_bad_fcs,
     .rx_fcs_reg(rx_fcs_reg),
     .tx_fcs_reg(tx_fcs_reg)
 );

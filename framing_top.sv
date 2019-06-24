@@ -84,6 +84,8 @@ reg        byte_sync, sync, irq_en, tx_busy;
       /*
         * AXIS Status
         */
+         wire        axis_error_bad_frame;
+         wire        axis_error_bad_fcs;
          wire [31:0] tx_fcs_reg_rev, rx_fcs_reg_rev;
    
    always @(posedge rx_clk)
@@ -343,6 +345,8 @@ rgmii_soc rgmii_soc1
    .rx_axis_tvalid(rx_axis_tvalid),
    .rx_axis_tlast(rx_axis_tlast),
    .rx_axis_tuser(rx_axis_tuser),
+   .rx_error_bad_frame(axis_error_bad_frame),
+   .rx_error_bad_fcs(axis_error_bad_fcs),
    .rx_fcs_reg(rx_fcs_reg),
    .tx_fcs_reg(tx_fcs_reg)
 );

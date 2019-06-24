@@ -78,6 +78,8 @@ module rgmii_core #
      * Status
      */
 
+    output wire        rx_error_bad_frame,
+    output wire        rx_error_bad_fcs,    
     output wire [31:0] rx_fcs_reg,
     output wire [31:0] tx_fcs_reg
 
@@ -127,8 +129,8 @@ eth_mac_inst (
     .tx_fifo_overflow(),
     .tx_fifo_bad_frame(),
     .tx_fifo_good_frame(),
-    .rx_error_bad_frame(),
-    .rx_error_bad_fcs(),
+    .rx_error_bad_frame,
+    .rx_error_bad_fcs,
     .rx_fcs_reg(rx_fcs_reg),
     .tx_fcs_reg(tx_fcs_reg),
     .rx_fifo_overflow(),
